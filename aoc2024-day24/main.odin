@@ -20,6 +20,7 @@ Op_Kind :: enum {
 	Div,
 	Mod,
 	Eql,
+	Force,
 }
 
 binop_to_string :: proc(op: Op_Kind) -> string {
@@ -36,6 +37,8 @@ binop_to_string :: proc(op: Op_Kind) -> string {
 		return "%"
 	case .Eql:
 		return "=="
+	case .Force:
+		return "force"
 	}
 	assert(false, "unreachable")
 	return ""
@@ -54,10 +57,58 @@ Node :: struct {
 
 Program :: [dynamic]^Node
 main :: proc() {
-	append(&INPUT.data, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4)
+	m2 := 1
+	m3 := 9
+	m1 := 4
+	m4 := 1
+	m7 := 1
+	m8 := 3
+	m6 := 2
+	m9 := 1
+	m5 := 5
+	m10 := 1
+	m11 := 6
+	m12 := 1
+	m0 := 8
+	m13 := 1
+
+
+	// 99196997985942
+
+	append(
+		&INPUT.data,
+		m0,
+		m1,
+		m2,
+		m3,
+		m4,
+		m5,
+		m6,
+		m7,
+		m8,
+		m9,
+		m10,
+		m11,
+		m12,
+		m13,
+	)
+
+	for x in INPUT.data {
+		fmt.print(x)
+	}
+	println()
+
+	// INPUT.data[
 
 	println(compute())
 	// println(naive())
+}
+
+getconst :: proc(x: ^Node) -> (res: int, ok: bool) {
+	if x == nil do return -1, false
+	if x.op == .Num do return x.n, true
+	if x.op != .Inp && x.min == x.max do return x.min, true
+	return -1, false
 }
 
 setnumber :: proc(x: ^Node, val: int) {
@@ -70,72 +121,95 @@ setnumber :: proc(x: ^Node, val: int) {
 opt :: proc() {
 	for &x in prog {
 		l, r := x.lhs, x.rhs
+
+		lc, lcok := getconst(l)
+		rc, rcok := getconst(r)
+
 		#partial switch x.op {
 		case .Add:
 			switch {
-			case l.op == .Num && r.op == .Num:
-				setnumber(x, l.n + r.n)
-			case l.op == .Num && l.n == 0:
+			case lcok && rcok:
+				setnumber(x, lc + rc)
+			case lcok && lc == 0:
 				x^ = r^
-			case r.op == .Num && r.n == 0:
+			case rcok && rc == 0:
 				x^ = l^
+			case rcok && l.op == .Add && l.rhs.op == .Num:
+				// (x + 2) + 3
+				sum := l.rhs.n + rc
+				x.lhs^ = l.lhs^
+				setnumber(x.rhs, sum)
 			}
 		case .Sub:
 			switch {
-			case l.op == .Num && r.op == .Num:
-				setnumber(x, l.n - r.n)
-			case r.op == .Num && r.n == 0:
+			case lcok && rcok:
+				setnumber(x, lc - rc)
+			case rcok && rc == 0:
 				x^ = l^
 			}
 		case .Mul:
 			switch {
-			case l.op == .Num && r.op == .Num:
-				setnumber(x, l.n * r.n)
-			case l.op == .Num:
-				if l.n == 1 do x^ = r^
-				else if l.n == 0 do setnumber(x, 0)
-			case r.op == .Num:
-				if r.n == 1 do x^ = l^
-				else if r.n == 0 do setnumber(x, 0)
+			case lcok && rcok:
+				setnumber(x, lc * rc)
+			case lcok:
+				if lc == 1 do x^ = r^
+				else if lc == 0 do setnumber(x, 0)
+			case rcok:
+				if rc == 1 do x^ = l^
+				else if rc == 0 do setnumber(x, 0)
 			}
 		case .Div:
 			switch {
-			case l.op == .Num && r.op == .Num:
-				setnumber(x, l.n / r.n)
-			case l.op == .Num && l.n == 0:
+			case lcok && rcok:
+				setnumber(x, lc / rc)
+			case lcok && lc == 0:
 				setnumber(x, 0)
-			case r.op == .Num && r.n == 1:
+			case rcok && rc == 1:
 				x^ = l^
-			case l.op == .Add && r.op == .Num:
-				// (x * 26 + y) / 26
-				if l.rhs.op == .Num && l.rhs.n == r.n {
-					x^ = l.rhs^
+			case l.op == .Add && rcok:
+				// ((x * 26) + y) / 26
+				if l.lhs.op == .Mul &&
+				   l.lhs.rhs.op == .Num &&
+				   l.lhs.rhs.n == rc &&
+				   l.rhs.max < rc {
+					x^ = l.lhs.lhs^
 				}
+			case:
 			}
 		case .Mod:
 			switch {
-			case l.op == .Num && r.op == .Num:
-				setnumber(x, l.n % r.n)
-			case l.op == .Num && l.n == 0:
+			case lcok && rcok:
+				setnumber(x, lc % rc)
+			case lcok && lc == 0:
 				setnumber(x, 0)
-			case l.op == .Add && r.op == .Num:
+			case l.op == .Add && rcok:
 				// ((x * 26) + y)  % 26
 				if l.lhs.op == .Mul &&
 				   l.lhs.rhs.op == .Num &&
-				   l.lhs.rhs.n == r.n &&
-				   l.rhs.max < r.n {
-					// x^ = l.rhs^
+				   l.lhs.rhs.n == rc &&
+				   l.rhs.max < rc {
+					x^ = l.rhs^
 				}
+			case rcok && l.max < rc:
+				x^ = l^
 			}
 		case .Eql:
 			switch {
-			case l.op == .Num && r.op == .Num:
-				setnumber(x, l.n == r.n ? 1 : 0)
+			case lcok && rcok:
+				setnumber(x, lc == rc ? 1 : 0)
 			case l.max < r.min || r.max < l.min:
 				setnumber(x, 0)
 			}
+		case .Force:
+			switch {
+			case l.op == .Add && l.rhs.op == .Num && rcok && l.rhs.n == rc:
+				// x + 8 force 8
+				x.lhs^ = l.lhs^
+				setnumber(x.rhs, 0)
+			}
 		}
 
+		l, r = x.lhs, x.rhs
 		switch x.op {
 		case .Add:
 			x.min = l.min + r.min
@@ -166,6 +240,68 @@ opt :: proc() {
 		case .Inp:
 			x.min = 0
 			x.max = 9
+		case .Force:
+			x.min = 0
+			x.max = 0
+		}
+	}
+}
+
+force :: proc() {
+	upper_bound := make(map[^Node]int)
+	last := prog[len(prog) - 1]
+	upper_bound[last] = 0
+
+	update :: proc(upper_bound: ^map[^Node]int, k: ^Node, v: int) {
+		if !(k in upper_bound) {
+			upper_bound[k] = v
+		} else {
+			upper_bound[k] = min(upper_bound[k], v)
+		}
+	}
+
+	#reverse for &x, i in prog {
+		if !(x in upper_bound) do continue
+		m := upper_bound[x]
+
+		if x.max < m do continue
+
+		u := &upper_bound
+		l := x.lhs
+		r := x.rhs
+
+		#partial switch x.op {
+		case .Num:
+			assert(x.n <= m, "impossible")
+		case .Add:
+			update(u, l, m - r.min)
+			update(u, r, m - l.min)
+		case .Mul:
+			if r.min > 0 {
+				update(u, l, m / r.min)
+			}
+			if l.min > 0 {
+				update(u, r, m / l.min)
+			}
+		case .Div:
+			if r.op == .Num {
+				update(u, l, m * r.n + (r.n - 1))
+			}
+		case .Eql:
+			rc, rcok := getconst(r)
+			if l.op == .Eql && rcok && rc == 0 {
+				// (x == y) == 0
+				// x force y
+				x.op = .Force
+				update(u, l.lhs, l.rhs.max)
+				update(u, l.rhs, l.lhs.max)
+				llhs := l.lhs
+				lrhs := l.rhs
+				x.lhs^ = llhs^
+				x.rhs^ = lrhs^
+				x.min = 0
+				x.max = 0
+			}
 		}
 	}
 }
@@ -194,6 +330,8 @@ eval :: proc(x: ^Node) -> int {
 		res = x.n
 	case .Num:
 		res = x.n
+	case .Force:
+		res = 0
 	}
 	x.has_result = true
 	x.result = res
@@ -208,7 +346,7 @@ dump :: proc() {
 	counter := make(map[^Node]int)
 	#reverse for x, i in prog {
 		if x.op == .Num || x.op == .Inp do continue
-		// if counter[x] == 0 && i != len(prog) - 1 do continue
+		if counter[x] == 0 && i != len(prog) - 1 do continue
 		counter[x.lhs] += 1
 		counter[x.rhs] += 1
 	}
@@ -225,7 +363,7 @@ dump :: proc() {
 				binop_to_string(x.op),
 				seen[x.rhs],
 			)
-			if counter[x] >= 2 {
+			if counter[x] >= 2 || x.op == .Force {
 				name := node_name(x)
 				fmt.printfln("%v = %v\t\t[%v, %v]", name, str, x.min, x.max)
 				str = name
@@ -853,8 +991,11 @@ compute :: proc() -> int {
 	y = mul(y, x)
 	z = add(z, y)
 	opt()
+	// dump()
+	res := eval(z)
+	force()
+	opt()
 	dump()
-	return eval(z)
+	return res
 }
-
 
