@@ -4,5 +4,6 @@
   "tabs": true,
   "tabs_width": 4,
   "sort_imports": true,
-  "newline_style": "LF"
+  "newline_style": "LF",
+  "preserve_struct_blank_lines":true
 }

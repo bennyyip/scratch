@@ -1,0 +1,15 @@
+inputs = [ "stb_c_lexer.h" ]
+
+import_lib = "stb_c_lexer.lib"
+
+remove_type_prefix = "stb_"
+
+// Remove this prefix from macro names
+remove_macro_prefix = "stb_"
+
+// Remove this prefix from function names (and add it as link_prefix) to the
+// foreign group
+remove_function_prefix = "stb_"
+
+
+output_folder = "stb"

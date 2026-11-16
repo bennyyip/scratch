@@ -7,7 +7,7 @@ printf :: fmt.printf
 
 Input :: struct {
 	data: [dynamic; 26]int,
-	idx:  int,
+	idx: int,
 }
 INPUT := Input{}
 
@@ -998,4 +998,3 @@ compute :: proc() -> int {
 	dump()
 	return res
 }
-
